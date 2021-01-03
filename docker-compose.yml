@@ -1,0 +1,30 @@
+version: '3'
+
+services:
+    nginx:
+        build:
+            context: .
+            dockerfile: ./src/nginx/Dockerfile
+        ports:
+            - "443:443"
+        depends_on:
+            - db
+    uwsgi:
+        build:
+            context: .
+            dockerfile: ./src/uwsgi/Dockerfile
+        ports:
+            - "5000:5000"
+        volumes:
+            - ./src/uwsgi/app:/var/www/app
+        depends_on:
+            - db
+        environment:
+            - 'SECRET_KEY=&SECRET_KEY'
+            - 'MYSQL_ROOT_PASSWORD=&MYSQL_ROOT_PASSWORD'
+    db:
+        image: mariadb
+        logging:
+            driver: none
+        environment:
+            - 'MYSQL_ROOT_PASSWORD=&MYSQL_ROOT_PASSWORD'
