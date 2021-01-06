@@ -4,3 +4,4 @@ mysql.connector
 bcrypt
 Werkzeug
 cachelib
+pycryptodome

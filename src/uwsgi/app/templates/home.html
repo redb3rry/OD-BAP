@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Ochrona Danych</title>
+    <title>NoteHolder</title>
     <script src="/scripts/login.js"></script>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
           integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
@@ -17,73 +17,88 @@
             crossorigin="anonymous"></script>
 </head>
 <header>
-    <div class="pos-f-t">
-        <div class="collapse" id="navbarToggleExternalContent">
-            <div class="bg-dark p-4">
-                <ul class="navbar-nav">
-                    <li class="nav-item active">
-                        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
-                    </li>
-                </ul>
-            </div>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">NoteHolder</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+                aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/notelist">My notes</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/addnote">Add note</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/publicnotes">Public notes</a>
+                </li>
+            </ul>
+            <ul class="nav navbar-nav navbar-right">
+                <li class="nav-item"><a class="nav-link" href="/logout"><span
+                        class="glyphicon glyphicon-log-out"></span> Logout </a></li>
+            </ul>
         </div>
-        <nav class="navbar navbar-dark bg-dark">
-            <button class="navbar-toggler" type="button" data-toggle="collapse"
-                    data-target="#navbarToggleExternalContent" aria-controls="navbarToggleExternalContent"
-                    aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-        </nav>
-    </div>
+    </nav>
 </header>
 <body>
 <div class="container">
-        <h2>Sign in</h2>
-        <div>
-            <form id="login-form" class="login-form" action="/login" method="post">
-                <div class="form-group">
-                    <label for="login">Login</label>
-                    <input id="login" type="text" class="form-control" placeholder="Enter login" name="login" required/>
-                </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input id="password" class="form-control" type="password" placeholder="Enter password" name="password" required/>
-                </div>
+    <h2>Sign in</h2>
+    <div>
+        <form id="login-form" class="login-form" action="/login" method="post">
+            <div class="form-group">
+                <label for="login">Login</label>
+                <input id="login" type="text" class="form-control" placeholder="Enter login" name="login" required/>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input id="password" class="form-control" type="password" placeholder="Enter password" name="password"
+                       required/>
+            </div>
 
-                <input id="button-log-form" class="btn btn-primary" type="submit" value="Login"/>
-            </form>
-        </div>
+            <input id="button-log-form" class="btn btn-primary" type="submit" value="Login"/>
+        </form>
+    </div>
 </div>
 <br>
 <br>
 <br>
 <div class="container">
-        <h2>Sign up</h2>
-        <div>
-            <form id="registration-form" class="registration-form" action="/register" method="post">
-                <div class="form-group">
-                    <label for="reg-mail">Email</label>
-                    <input id="reg-mail" class="form-control" type="email" placeholder="Enter email" name="email" required>
-                </div>
-                <div class="form-group">
-                    <label for="reg-login">Login</label>
-                    <input id="reg-login" class="form-control" type="text" placeholder="Enter login" name="login" required/>
-                </div>
-                <div class="form-group">
-                    <label for="reg-password">Password</label>
-                    <input id="reg-password" class="form-control" type="password" placeholder="Enter password" name="password" required/>
-                </div>
-                <div class="progress">
-                    <div id="password-strength" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
-                </div>
-                <div class="form-group">
-                    <label for="reg-password-2">Repeat password</label>
-                    <input id="reg-password-2" class="form-control" type="password" placeholder="Repeat password" name="repeat-password" required/>
-                </div>
+    <h2>Sign up</h2>
+    <div>
+        <form id="registration-form" class="registration-form" action="/register" method="post">
+            <div class="form-group">
+                <label for="reg-mail">Email</label>
+                <input id="reg-mail" class="form-control" type="email" placeholder="Enter email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label for="reg-login">Login</label>
+                <input id="reg-login" class="form-control" type="text" placeholder="Enter login" name="login" required/>
+            </div>
+            <div class="form-group">
+                <label for="reg-password">Password</label>
+                <input id="reg-password" class="form-control" type="password" placeholder="Enter password"
+                       name="password" required/>
+            </div>
+            <div class="progress">
+                <div id="password-strength" class="progress-bar w-0" role="progressbar" aria-valuenow="0"
+                     aria-valuemin="0"
+                     aria-valuemax="100"></div>
+            </div>
+            <div class="form-group">
+                <label for="reg-password-2">Repeat password</label>
+                <input id="reg-password-2" class="form-control" type="password" placeholder="Repeat password"
+                       name="repeat-password" required/>
+            </div>
 
-                <input id="button-reg-form" class="btn btn-primary" type="submit" value="Sign up"/>
-            </form>
-        </div>
+            <input id="button-reg-form" class="btn btn-primary" type="submit" value="Sign up"/>
+        </form>
+    </div>
 </div>
 </body>
 </html>
