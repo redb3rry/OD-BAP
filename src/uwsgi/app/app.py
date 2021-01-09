@@ -403,8 +403,14 @@ def change_password(recovery_id):
                     {'hashed_new_password': hashed_new_password, 'login': login})
         cache.set(f'{login}Attempts', 0)
         sql.execute("DELETE * FROM ips WHERE login = %(login)s", {'login': login})
-        ip = request.access_route
+        ip = request.access_route[0]
         add_new_ip_to_user(ip, login)
         return make_response("Changed password.", 200)
     else:
         return render_template("changepassword.html", recovery_id=recovery_id)
+
+
+@app.after_request
+def after_request(response):
+    response.headers.set('server', None)
+    return response
