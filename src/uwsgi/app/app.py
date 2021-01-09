@@ -8,9 +8,10 @@ from base64 import b64encode, b64decode
 import mysql.connector as mariadb
 import os
 from bcrypt import hashpw, checkpw, gensalt
-from cachelib import SimpleCache
+from cachelib import RedisCache
 import app.init as dbinit
 from werkzeug.utils import secure_filename
+from flask_wtf.csrf import CSRFProtect
 
 app = Flask(__name__, static_url_path="")
 app.secret_key = os.environ.get("SECRET_KEY")
@@ -21,23 +22,30 @@ sql.execute("USE od")
 salt = gensalt(12)
 key = get_random_bytes(16)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=60)
-cache = SimpleCache()
+cache = RedisCache(host='redis-cache', port=6379)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'txt'}
 app.config['UPLOAD_FOLDER'] = 'app/files/'
+csrf = CSRFProtect(app)
 
 
 @app.route("/", methods=["GET"])
 def index():
-    sql.execute('SELECT * FROM files')
-    data = sql.fetchall()
-    print(data)
     return render_template("home.html")
+
+
+@app.before_first_request
+def prepare():
+    save_user("user", "password", "user@email.com")
+    save_user("admin", "admin", "admin@email.com")
+    save_user("ceo", "honeypot", "ceo@email.com")
+    add_new_ip_to_user("172.28.0.1", "user")
+    add_new_ip_to_user("166.36.52.57", "admin")
 
 
 @app.route("/login", methods=["POST"])
 def login_user():
     login = request.form.get("login")
-    if cache.get(f'{login}Block'):
+    if cache.get(f'{login}Attempts') is not None and cache.get(f'{login}Attempts') > 5:
         return make_response("Exceeded allowed number of login attempts. Please try again in 10 minutes.")
     password = request.form.get("password")
     if None in [login, password]:
@@ -48,13 +56,21 @@ def login_user():
             cache.set(f'{login}Attempts', 1, timeout=600)
         else:
             cache.set(f'{login}Attempts', att + 1, timeout=600)
-            if att + 1 > 5:
-                cache.set(f'{login}Block', True, timeout=600)
         return make_response("Invalid credentials", 400)
     cache.set(f'{login}Attempts', 0)
     session_id = uuid.uuid4().hex
     sql.execute("INSERT INTO session (sid, login) VALUES (%(sid)s, %(login)s)", {'sid': session_id, 'login': login})
     db.commit()
+    ip = request.access_route[0]
+    if add_new_ip_to_user(ip, login):
+        sql.execute("SELECT email FROM users WHERE login = %(login)s", {'login': login})
+        email, = sql.fetchone() or (None,)
+        response = make_response(
+            f"Logged in from new ip. Sending email to: {email} \n A new machine with this ip address: {ip}, has accessed your account. If you do not recognize this login please change your password immediately.")
+        session["session-id"] = session_id
+        session['identity'] = login
+        session.permanent = True
+        return response
     response = make_response("Logged in", 301)
     session["session-id"] = session_id
     session['identity'] = login
@@ -88,11 +104,23 @@ def register():
     if not check_login_availability(login):
         return make_response("Login taken", 400)
 
+    ip = request.access_route[0]
     save_user(login, password, email)
-
+    add_new_ip_to_user(ip, login)
     response = make_response("Registered", 301)
     response.headers["Location"] = "/"
     return response
+
+
+def add_new_ip_to_user(ip, login):
+    sql.execute("SELECT ip FROM ips WHERE login=%(login)s", {'login': login})
+    allowed_ips = sql.fetchall()
+    ip_tuple = ip,
+    if allowed_ips is None or ip_tuple not in allowed_ips:
+        sql.execute("INSERT INTO ips (login, ip) VALUES (%(login)s, %(ip)s)", {'login': login, 'ip': ip})
+        db.commit()
+        return True
+    return False
 
 
 def save_user(login, password, email):
@@ -110,7 +138,6 @@ def save_user(login, password, email):
 def check_login_availability(login):
     sql.execute("SELECT EXISTS(SELECT 1 FROM users WHERE login = %(login)s LIMIT 1)", {'login': login})
     db_login, = sql.fetchone() or (None,)
-    print(db_login)
     if not db_login:
         return True
     else:
@@ -122,6 +149,7 @@ def logout():
     if session.get('identity') is not None:
         user = session['identity']
         sql.execute("DELETE FROM session WHERE login = %(login)s", {'login': user})
+        db.commit()
         response = make_response("Logged out", 301)
         session.clear()
         response.headers["Location"] = "/"
@@ -193,7 +221,6 @@ def notelist():
         names = []
         privacies = []
         note_ids = []
-        print(notes)
         for i in range(num_of_notes):
             note = notes[i]
             names.append(note[1])
@@ -215,7 +242,7 @@ def viewnote(noteid):
         if session.get('identity') is not None:
             login = session.get('identity')
             if login != note[1]:
-                return make_response("This is not your note!", 400)
+                return make_response("You are not authorized to access this note.", 401)
         else:
             return make_response("You are not logged in!", 400)
     return render_template("viewnote.html", note_name=note[2], note_privacy=note[4], note_id=note[0],
@@ -241,7 +268,7 @@ def unlocknote(noteid):
             {'noteid': noteid})
         note = sql.fetchone()
         if login != note[1]:
-            return make_response("This is not your note!", 400)
+            return make_response("You are not authorized to access this note.", 401)
         note_text = decrypt(note[3], note[5])
         return render_template("viewnote.html", note_name=note[2], note_privacy="unlocked secure", note_id=note[0],
                                note_content=note_text)
@@ -258,7 +285,6 @@ def viewpublicnotes():
     logins = []
     names = []
     note_ids = []
-    print(notes)
     for i in range(num_of_notes):
         note = notes[i]
         logins.append(note[0])
@@ -298,17 +324,85 @@ def upload_file():
 
 @app.route("/download-file/<int:file_id>", methods=['GET'])
 def download_file(file_id):
-    sql.execute("SELECT fileid, filename FROM files WHERE fileid=%(file_id)s", {'file_id': file_id})
-    file = sql.fetchone()
-    if file is None:
-        return make_response("File couldn't be found on server.", 400)
-    filename = file[1]
-    filepath = "files/" + filename
-    if filepath is not None:
-        try:
-            return send_file(filepath, attachment_filename=filename, as_attachment=True)
-        except Exception as e:
-            print(e)
+    if session.get('identity') is not None:
+        sql.execute("SELECT fileid, filename, login FROM files WHERE fileid=%(file_id)s", {'file_id': file_id})
+        file = sql.fetchone()
+        if file is None:
             return make_response("File couldn't be found on server.", 400)
+        dblogin = file[2]
+        login = session.get('identity')
+        if dblogin != login:
+            return make_response("You are not authorized to access this file.", 401)
+        filename = file[1]
+        filepath = "files/" + filename
+        if filepath is not None:
+            try:
+                return send_file(filepath, attachment_filename=filename, as_attachment=True)
+            except Exception as e:
+                print(e)
+                return make_response("File couldn't be found on server.", 400)
 
-    return filename, 200
+        return filename, 200
+    else:
+        return make_response("You are not logged in!", 400)
+
+
+@app.route("/filelist", methods=["GET"])
+def filelist():
+    if session.get('identity') is not None:
+        login = session.get('identity')
+        sql.execute(
+            "SELECT fileid, filename FROM files WHERE login = %(login)s",
+            {'login': login})
+        files = sql.fetchall()
+        num_of_files = len(files)
+        filenames = []
+        file_ids = []
+        for i in range(num_of_files):
+            file = files[i]
+            filenames.append(file[1])
+            file_ids.append(file[0])
+        return render_template("fileslist.html", num_of_files=num_of_files, my_filenames=filenames,
+                               my_file_id=file_ids)
+    else:
+        return make_response("You are not logged in!", 400)
+
+
+@app.route("/forgot-password", methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == "POST":
+        login = request.form.get("login")
+        sql.execute("SELECT email FROM users WHERE login = %(login)s", {'login': login})
+        email, = sql.fetchone() or (None,)
+        if email is None:
+            make_response("No account tied to this login.", 400)
+        recovery_id = uuid.uuid4().hex
+        cache.set(f'{recovery_id}', login, timeout=300)
+        return make_response(
+            f"Sending email to: {email}\n    \n     \n"
+            f"Visit this link to recover your password: https://localhost/recover-password/{recovery_id}",
+            200)
+    else:
+        return render_template("recoverpassword.html")
+
+
+@app.route("/recover-password/<recovery_id>", methods=['GET', 'POST'])
+def change_password(recovery_id):
+    login = cache.get(f'{recovery_id}')
+    if login is None:
+        return make_response("Invalid link.", 400)
+    if request.method == "POST":
+        new_password = request.form.get('password')
+        repeated_password = request.form.get('repeat-password')
+        if new_password != repeated_password:
+            make_response("Passwords do not match", 400)
+        hashed_new_password = hashpw(new_password.encode(), salt)
+        sql.execute("UPDATE users SET password = %(hashed_new_password)s WHERE login = %(login)s",
+                    {'hashed_new_password': hashed_new_password, 'login': login})
+        cache.set(f'{login}Attempts', 0)
+        sql.execute("DELETE * FROM ips WHERE login = %(login)s", {'login': login})
+        ip = request.access_route
+        add_new_ip_to_user(ip, login)
+        return make_response("Changed password.", 200)
+    else:
+        return render_template("changepassword.html", recovery_id=recovery_id)

@@ -26,16 +26,21 @@ document.addEventListener('DOMContentLoaded', function (event) {
 
     function uploadFile(file) {
         let url = "https://localhost/upload-file"
+        let csrf_token = document.getElementById('csrf_token').value
         let params = {
             method: 'POST',
             body: file,
             redirect: "follow",
             credentials: 'include',
-            mode: 'cors'
+            mode: 'cors',
+            headers:{
+                'X-CSRFToken':csrf_token
+            }
         }
         fetch(url, params).then(function (resp) {
             console.log("Response: " + resp.status);
             if (resp.status === HTTP_STATUS.OK || resp.status === HTTP_STATUS.CREATED) {
+                window.location.href = "/filelist";
                 return resp.json();
             } else {
                 console.error("Response status code: " + resp.status);

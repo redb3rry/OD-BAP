@@ -38,6 +38,9 @@
                 <li class="nav-item">
                     <a class="nav-link" href="/publicnotes">Public notes</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/filelist">My files</a>
+                </li>
             </ul>
             <ul class="nav navbar-nav navbar-right">
                 <li class="nav-item"><a class="nav-link" href="/logout"><span
@@ -59,8 +62,9 @@
                 <label for="password">Password</label>
                 <input id="password" class="form-control" type="password" placeholder="Enter password" name="password"
                        required/>
+                <a class="nav-link" href="/forgot-password">Forgot password?</a>
             </div>
-
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <input id="button-log-form" class="btn btn-primary" type="submit" value="Login"/>
         </form>
     </div>
@@ -95,7 +99,7 @@
                 <input id="reg-password-2" class="form-control" type="password" placeholder="Repeat password"
                        name="repeat-password" required/>
             </div>
-
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <input id="button-reg-form" class="btn btn-primary" type="submit" value="Sign up"/>
         </form>
     </div>

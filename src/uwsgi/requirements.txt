@@ -5,3 +5,5 @@ bcrypt
 Werkzeug
 cachelib
 pycryptodome
+redis
+flask_wtf
