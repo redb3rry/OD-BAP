@@ -28,7 +28,7 @@ def init():
 
     sql.execute("DROP TABLE IF EXISTS files")
     sql.execute(
-        "CREATE TABLE files (fileid int AUTO_INCREMENT, filename VARCHAR(50), login VARCHAR(20), PRIMARY KEY (fileid), FOREIGN KEY (login) REFERENCES users(login))")
+        "CREATE TABLE files (fileid int AUTO_INCREMENT, filename VARCHAR(50), server_file VARCHAR(32), login VARCHAR(20), PRIMARY KEY (fileid), FOREIGN KEY (login) REFERENCES users(login))")
 
     sql.execute("DROP TABLE IF EXISTS ips")
     sql.execute(

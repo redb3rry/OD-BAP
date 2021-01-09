@@ -311,10 +311,11 @@ def upload_file():
             return {"message": "No file"}, 404
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            server_file = uuid.uuid4().hex
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], server_file))
             sql.execute(
-                "INSERT INTO files(filename, login) VALUES(%(filename)s, %(login)s)",
-                {'filename': filename, 'login': login})
+                "INSERT INTO files(filename,server_file, login) VALUES(%(filename)s, %(server_file)s, %(login)s)",
+                {'filename': filename, 'server_file': server_file, 'login': login})
             return {"message": "Uploaded file"}, 200
         else:
             return {"message": "Invalid file"}, 400
@@ -325,7 +326,7 @@ def upload_file():
 @app.route("/download-file/<int:file_id>", methods=['GET'])
 def download_file(file_id):
     if session.get('identity') is not None:
-        sql.execute("SELECT fileid, filename, login FROM files WHERE fileid=%(file_id)s", {'file_id': file_id})
+        sql.execute("SELECT fileid, filename, login, server_file FROM files WHERE fileid=%(file_id)s", {'file_id': file_id})
         file = sql.fetchone()
         if file is None:
             return make_response("File couldn't be found on server.", 400)
@@ -333,8 +334,9 @@ def download_file(file_id):
         login = session.get('identity')
         if dblogin != login:
             return make_response("You are not authorized to access this file.", 401)
+        server_file = file[3]
         filename = file[1]
-        filepath = "files/" + filename
+        filepath = "files/" + server_file
         if filepath is not None:
             try:
                 return send_file(filepath, attachment_filename=filename, as_attachment=True)
